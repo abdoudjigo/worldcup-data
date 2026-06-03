@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+
+# Data (fichiers lourds)
+data/*.csv
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
