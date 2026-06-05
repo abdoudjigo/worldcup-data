@@ -192,3 +192,43 @@ def parser_ligne_buteur(ligne_buteurs: str) -> dict:
         'buteurs_ext': buteurs_ext
     }
 
+
+
+#================================================================
+#=================== FONCTION PARSER DATE =======================
+#================================================================
+
+def parser_date(ligne_date: str) -> dict:
+    """
+    Parse une ligne de date comme 'Sun Jul 13' ou 'Sat Jul 19'
+    """
+    # Nettoyer les espaces
+    ligne_date = ligne_date.strip()
+    
+    # Séparer les trois parties : jour_semaine, mois, jour
+    parties = ligne_date.split()
+    
+    if len(parties) != 3:
+        raise ValueError(f"Format de date invalide: {ligne_date}")
+    
+    jour_semaine = parties[0]
+    mois = parties[1]
+    jour = int(parties[2])
+    
+    # Dictionnaire de conversion mois (abréviation → numéro)
+    mois_map = {
+        'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4,
+        'May': 5, 'Jun': 6, 'Jul': 7, 'Aug': 8,
+        'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+    }
+    
+    mois_num = mois_map.get(mois, 0)  # 0 si mois non trouvé
+    
+    return {
+        'jour_semaine': jour_semaine,
+        'jour': jour,
+        'mois': mois,
+        'mois_num': mois_num
+    }
+print(parser_date("Sun Jul 13"))
+print(parser_date("Sat Nov 20"))
