@@ -1,5 +1,9 @@
 import re
 
+#=========================================================================
+#=============== FONCTION PARSER LIGNE MATCH =============================
+#=========================================================================
+
 def parser_ligne_match(ligne: str) -> dict:
     """
     Parse une ligne de match
@@ -36,7 +40,7 @@ def parser_ligne_match(ligne: str) -> dict:
     apres_score = infos_match[pos_score + len(score_texe):].strip()
 
     # Supprimer tout ce qui est entre parenthèses
-    apres_score = re.sub(r'\(.*?\)', '', apres_score).strip()
+    apres_score = re.sub(r'\(.*?\)', '', apres_score).strip() 
      
     # Extraire heure et timezone de la partie avantscore
     partie_avant = avant_score.split()
@@ -59,25 +63,132 @@ def parser_ligne_match(ligne: str) -> dict:
         'stade' : stade
     }
 
-ligne = "15:00 UTC-3   Chile  1-0  France   @ Estadio Centenario, Montevideo"
-# Cas 1 - équipe avec deux mots
-ligne1 = "  15:00 UTC-3   South Africa  1-0  France   @ Stade, Ville"
-
-# Cas 2 - score avec prolongation
-ligne2 = "  20:00 UTC+1   Argentina  3-3  France   @ Lusail Stadium, Qatar"
-
-# Cas 3 - équipe ext avec deux mots
-ligne3 = "  15:00 UTC-3   Chile  3-0  West Germany   @ Stade, Ville"
-# Cas 4 - prolongation
-ligne4 = "  20:00 UTC+3   Argentina  3-3 (a.e.t.)  France   @ Lusail Stadium, Qatar"
-print(parser_ligne_match(ligne4))
-print(parser_ligne_match(ligne))
-print(parser_ligne_match(ligne1))
-print(parser_ligne_match(ligne2))
-print(parser_ligne_match(ligne3))
 
 
+#=========================================================================
+#=============== FONCTION PARSER BUTEURS =================================
+#=========================================================================
 
+def parser_ligne_buteur(ligne_buteurs: str) -> dict:
+    """
+    Parse une ligne de buteurs comme:
+    (Lucien LAURENT 19', Marcel LANGILLER 40';
+    Juan CARRENO 70')
+    """
 
+    # on enlève les parenthèses extérieures
+    if ligne_buteurs.startswith('(') and ligne_buteurs.endswith(')'):
+        ligne_buteurs = ligne_buteurs[1:-1] 
 
+    # on sépare les buteurs dom et ext avec le point virgule
+    parties = ligne_buteurs.split(';')
+
+    buteurs_dom = []
+    buteurs_ext = []
+
+    # FONCTION INTERNE pour parser une liste de buteurs
+    def parser_liste_buteurs(texte_buteurs: str) -> list:
+        """
+        Parse "Lucien LAURENT 19', Marcel LANGILLER 40', Andre MASCHINOT 43', 87'"
+        Retourne une liste de dicts
+        """
+        if not texte_buteurs.strip():
+            return []
+        
+        # Étape 1 : découper par virgule
+        # ["Lucien LAURENT 19'", " Marcel LANGILLER 40'", " Andre MASCHINOT 43'", " 87'"]
+        elements = texte_buteurs.split(',')
+        
+        buteurs = []
+        dernier_nom = None  # Variable pour mémoriser le nom du dernier buteur
+        
+        for element in elements:
+            element = element.strip()
+          
+            # VÉRIFIER si l'élément contient des lettres
+            # =============================================
+            # any(c.isalpha() for c in element) 
+            # → True si au moins une lettre (a-z, A-Z) est présente
+            # → False si seulement chiffres, espaces, apostrophes
+            contient_lettres = any(c.isalpha() for c in element)
+            
+            if contient_lettres:
+                # =============================================
+                # CAS 1 : Nouveau buteur (avec nom)
+                # Exemple: "Lucien LAURENT 19'" ou "Andre MASCHINOT 43'"
+                # =============================================
+                # Regex pour capturer le nom et la minute
+                # (.+?) : nom (non-greedy)
+                # \s+ : espaces
+                # (\d+) : minute
+                # \' : apostrophe
+                # (?:\((\w+)\))? : optionnel : (p) ou (og)
+                match = re.search(r'(.+?)\s+(\d+)\'(?:\((\w+)\))?', element)
+                
+                if match:
+                    nom = match.group(1).strip()
+                    minute = int(match.group(2))
+                    type_flag = match.group(3)
+                    
+                    # Mémoriser le nom pour les éventuelles minutes suivantes
+                    dernier_nom = nom
+                    
+                    # Déterminer le type de but
+                    if type_flag == 'p':
+                        type_but = 'penalty'
+                    elif type_flag == 'og':
+                        type_but = 'contre_son_camp'
+                    else:
+                        type_but = 'normal'
+                    
+                    buteurs.append({
+                        'nom': nom,
+                        'minute': minute,
+                        'type': type_but
+                    })
+            
+            else:
+                # CAS 2 : Minute seule (même buteur que précédent)
+                # Exemple: "87'" ou "87'(p)"
+                # =============================================
+                # On vérifie qu'on a un dernier_nom (sécurité)
+                if dernier_nom and element:
+                    # Regex pour capturer seulement la minute
+                    match = re.search(r'(\d+)\'(?:\((\w+)\))?', element)
+                    
+                    if match:
+                        minute = int(match.group(1))
+                        type_flag = match.group(2)
+                        
+                        # Déterminer le type de but
+                        if type_flag == 'p':
+                            type_but = 'penalty'
+                        elif type_flag == 'og':
+                            type_but = 'contre_son_camp'
+                        else:
+                            type_but = 'normal'
+                        
+                        # Ajouter un nouveau but avec le même nom
+                        buteurs.append({
+                            'nom': dernier_nom,
+                            'minute': minute,
+                            'type': type_but
+                        })
+        
+        return buteurs
+    
+    # TRAITEMENT DOMICILE
+    # =====================================================
+    if len(parties) > 0 and parties[0].strip():
+        buteurs_dom = parser_liste_buteurs(parties[0])
+    
+    # =====================================================
+    # TRAITEMENT EXTERIEUR
+    if len(parties) > 1 and parties[1].strip():
+        buteurs_ext = parser_liste_buteurs(parties[1])
+    
+    return {
+        'buteurs_dom': buteurs_dom,
+        'buteurs_ext': buteurs_ext
+    }
 
