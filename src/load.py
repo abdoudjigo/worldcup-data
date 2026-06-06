@@ -398,6 +398,18 @@ def charger_joueurs(cur, matchs):
                 for nom_propre in nettoyer_nom_joueur(joueur_brut):
                     if nom_propre and equipe_ext_id:
                         joueurs_uniques.add((nom_propre, equipe_ext_id))
+
+        # Après le traitement des compositions, ajouter les buteurs manquants
+
+        for buteur in match.get('buteurs_dom', []):
+            nom = nettoyer_nom_buteur(buteur['nom'])
+            if nom and equipe_dom_id:
+                joueurs_uniques.add((nom, equipe_dom_id))
+
+        for buteur in match.get('buteurs_ext', []):
+            nom = nettoyer_nom_buteur(buteur['nom'])
+            if nom and equipe_ext_id:
+                joueurs_uniques.add((nom, equipe_ext_id))
     
     print(f"📋 {len(joueurs_uniques)} joueurs uniques trouvés")
     
