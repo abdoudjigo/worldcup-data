@@ -520,3 +520,100 @@ def charger_buts(cur, matchs, match_ids):
     print(f"✅ Buts insérés : {buts_inseres}")
     if buts_ignores > 0:
         print(f"⚠️  Buts ignorés : {buts_ignores}")
+
+
+
+# ===================================================================
+# FONCTION : CHARGER LES ARBITRES
+# ===================================================================
+
+def charger_arbitres(cur, matchs, match_ids):
+    """
+    Parcourt tous les matchs et insère les arbitres uniques dans la table arbitres.
+    Puis lie chaque arbitre à son match dans matchs_arbitres.
+    
+    Args:
+        cur: Curseur PostgreSQL
+        matchs: Liste de dictionnaires (chaque dict = un match)
+        match_ids: Dictionnaire {index: match_id} pour mapper chaque match à son ID
+    """
+    
+    arbitres_uniques = set()
+    arbitres_par_match = []  # Liste de tuples (match_id, nom_arbitre, role)
+    
+    for index, match in enumerate(matchs):
+        match_id = match_ids.get(index)
+        if not match_id:
+            continue
+        
+        arbitres = match.get('arbitres', [])
+        
+        for i, arbitre in enumerate(arbitres):
+            nom = arbitre.get('nom', '').strip()
+            nationalite = arbitre.get('nationalite', '').strip()
+            
+            if not nom:
+                continue
+            
+            # Collecter les arbitres uniques
+            arbitres_uniques.add((nom, nationalite))
+            
+            # Déterminer le rôle (principal, assistant 1, assistant 2, etc.)
+            if i == 0:
+                role = 'principal'
+            else:
+                role = f'assistant {i}'
+            
+            # Collecter la liaison match-arbitre
+            arbitres_par_match.append((match_id, nom, role))
+    
+    print(f"📋 {len(arbitres_uniques)} arbitres uniques trouvés")
+    
+    # Insérer les arbitres uniques
+    arbitres_inseres = 0
+    for nom, nationalite in arbitres_uniques:
+        cur.execute("""
+            INSERT INTO arbitres (nom, nationalite) 
+            VALUES (%s, %s) 
+            ON CONFLICT (nom) DO NOTHING
+        """, (nom, nationalite))
+        
+        if cur.rowcount > 0:
+            arbitres_inseres += 1
+    
+    print(f"✅ Arbitres insérés : {arbitres_inseres}")
+    
+    # Insérer les liaisons match-arbitre
+    matchs_arbitres_inseres = 0
+    for match_id, nom_arbitre, role in arbitres_par_match:
+        # Récupérer l'ID de l'arbitre
+        cur.execute("SELECT id FROM arbitres WHERE nom = %s", (nom_arbitre,))
+        result = cur.fetchone()
+        
+        if not result:
+            print(f"⚠️  Arbitre non trouvé: {nom_arbitre}")
+            continue
+        
+        arbitre_id = result[0]
+        
+        cur.execute("""
+            INSERT INTO matchs_arbitres (match_id, arbitre_id, role) 
+            VALUES (%s, %s, %s)
+            ON CONFLICT (match_id, arbitre_id) DO NOTHING
+        """, (match_id, arbitre_id, role))
+        
+        if cur.rowcount > 0:
+            matchs_arbitres_inseres += 1
+    
+    print(f"✅ Liaisons match-arbitre insérées : {matchs_arbitres_inseres}")
+
+
+# ===================================================================
+# FONCTION POUR RÉCUPÉRER L'ID D'UN ARBITRE
+# ===================================================================
+
+def get_arbitre_id(cur, nom_arbitre):
+    """Retourne l'ID d'un arbitre à partir de son nom"""
+    cur.execute("SELECT id FROM arbitres WHERE nom = %s", (nom_arbitre,))
+    result = cur.fetchone()
+    return result[0] if result else None
