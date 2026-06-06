@@ -1,78 +1,69 @@
-# Cette fonction lit un fichier texte et retourne une liste de matchs
-from load import charger_equipes_avec_code
+import os
+import psycopg2
 from parser import parser_fichier
-# Cette fonction sauvegarde une liste de matchs dans un fichier JSON
 from utils import sauvegarder_json
+from load import (
+    charger_equipes_avec_code,
+    charger_tournois,
+    charger_stades
+)
 
+BASE_MORE = "/home/abdoulaye/Documents/Orange Digital center/projets/worldcup-data/worldcup/more/"
+BASE_WORLDCUP = "/home/abdoulaye/Documents/Orange Digital center/projets/worldcup-data/worldcup/"
+SORTIE = "/home/abdoulaye/Documents/Orange Digital center/projets/worldcup-data/data/worldcup_raw.json"
 
-# ===================================================================
-# POINT D'ENTRÉE PRINCIPAL
-# ===================================================================
+# 1. Parser tous les fichiers + extraire pays hôte
+tous_les_matchs = []
+tournois_info = {}  # {1930: 'Uruguay', 1934: 'Italy', ...}
 
-if __name__ == "__main__":
-    
-    import os
-    import json
+for fichier in sorted(os.listdir(BASE_MORE)):
+    if fichier.endswith('_full.txt'):
+        annee = int(fichier.replace('_full.txt', ''))
 
-    # Dossier source : là où se trouvent les fichiers _full.txt
-    base = "/home/abdoulaye/Documents/Orange Digital center/projets/worldcup-data/worldcup/more/"    
-    # Dossier destination : fichier JSON de sortie unique
-    sortie = "/home/abdoulaye/Documents/Orange Digital center/projets/worldcup-data/data/worldcup_raw.json"
+        # Trouver le dossier correspondant dans worldcup/
+        dossiers = [d for d in os.listdir(BASE_WORLDCUP)
+                    if d.startswith(str(annee) + '--')]
 
-    # =================================================================
-    # tous_les_matchs = []  → crée une liste vide
-    # On va y ajouter les matchs de chaque année
-    # =================================================================
-    
-    tous_les_matchs = []
-    
-    # os.listdir(base) → retourne la liste de TOUS les fichiers/dossiers
-    # Exemple : ["1930_full.txt", "1934_full.txt", "README.md", ...]
-    #
-    # sorted() → trie par ordre alphabétique (1930, 1934, 1938...)
-    # =================================================================
-    
-    for fichier in sorted(os.listdir(base)):
-        
-        # =================================================================
-        # FILTRAGE : garder uniquement les fichiers _full.txt
-        # =================================================================
-        
-        if fichier.endswith('_full.txt'):
+        if dossiers:
+            pays_hote = dossiers[0].split('--')[1].replace('-', ' ').title()
+        else:
+            pays_hote = None
 
-            # fichier = "1930_full.txt"
-            # .replace('_full.txt', '') → enlève "_full.txt" → "1930"
-            # =================================================================
-            
-            annee = fichier.replace('_full.txt', '')  # "1930"
-            
-            # os.path.join(base, fichier) → fusionne dossier + nom du fichier
-            # Exemple : base + "1930_full.txt" 
-            # =================================================================
-            
-            chemin = os.path.join(base, fichier)
+        tournois_info[annee] = pays_hote
 
-            # parser_fichier(chemin) → lit le fichier et retourne une LISTE
-            # de matchs pour cette année (ex: 18 matchs pour 1930)
-            # =================================================================
-            
-            matchs = parser_fichier(chemin)
-            
-            # Pour chaque match de la liste, on ajoute une clé "annee"
-            # Exemple : match devient {..., "annee": 1930}
-            # =================================================================
-            
-            for match in matchs:
-                match['annee'] = int(annee)  # Convertit "1930" en 1930 (int)
-            
-            tous_les_matchs.extend(matchs)
-    
-    # =================================================================
-    # SAUVEGARDER EN JSON
-    # =================================================================
-    # sauvegarder_json(liste_matchs, chemin_destination)
-    # Crée le dossier si nécessaire et écrit le fichier JSON
-    # =================================================================
-    
-    sauvegarder_json(tous_les_matchs, sortie)
-    
+        # Parser les matchs
+        matchs = parser_fichier(os.path.join(BASE_MORE, fichier))
+        for match in matchs:
+            match['annee'] = annee
+        tous_les_matchs.extend(matchs)
+
+print(f"✅ {len(tous_les_matchs)} matchs parsés")
+
+# 2. Sauvegarder JSON
+sauvegarder_json(tous_les_matchs, SORTIE)
+
+# 3. Charger en base
+conn = psycopg2.connect(
+    dbname="worldcup",
+    user="postgres",
+    password="5853500",
+    host="localhost"
+)
+cur = conn.cursor()
+
+charger_equipes_avec_code(cur, tous_les_matchs)
+charger_tournois(cur, tournois_info)
+charger_stades(cur, tous_les_matchs)
+
+conn.commit()
+
+# 4. Vérifications
+cur.execute("SELECT COUNT(*) FROM equipes")
+print(f"Equipes: {cur.fetchone()[0]}")
+cur.execute("SELECT COUNT(*) FROM tournois")
+print(f"Tournois: {cur.fetchone()[0]}")
+cur.execute("SELECT COUNT(*) FROM stades")
+print(f"Stades: {cur.fetchone()[0]}")
+
+cur.close()
+conn.close()

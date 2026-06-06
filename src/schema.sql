@@ -23,7 +23,7 @@ CREATE TABLE equipes (
 -- 3. Stades
 CREATE TABLE stades (
     id              SERIAL PRIMARY KEY,
-    nom             VARCHAR(150) NOT NULL,
+    nom             VARCHAR(150) NOT NULL UNIQUE,
     ville           VARCHAR(100),
     pays            VARCHAR(100),
     capacite        INTEGER
