@@ -535,22 +535,3 @@ def parser_fichier(chemin: str) -> list:
     return matchs
 
 
-
-if __name__ == "__main__":
-    import os
-    import json
-
-    base = "/home/abdoulaye/Documents/Orange Digital center/projets/worldcup-data/worldcup/more/"
-    
-    total = 0
-    for fichier in sorted(os.listdir(base)):
-        if fichier.endswith('_full.txt'):
-            chemin = os.path.join(base, fichier)
-            try:
-                matchs = parser_fichier(chemin)
-                print(f"✅ {fichier} — {len(matchs)} matchs")
-                total += len(matchs)
-            except Exception as e:
-                print(f"❌ {fichier} — ERREUR: {e}")
-    
-    print(f"\nTotal: {total} matchs")
