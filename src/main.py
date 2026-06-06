@@ -5,7 +5,11 @@ from utils import sauvegarder_json
 from load import (
     charger_equipes_avec_code,
     charger_tournois,
-    charger_stades
+    charger_stades,
+    charger_matchs,
+    get_equipe_id,
+    get_tournoi_id,
+    get_stade_id
 )
 
 BASE_MORE = "/home/abdoulaye/Documents/Orange Digital center/projets/worldcup-data/worldcup/more/"
@@ -54,7 +58,7 @@ cur = conn.cursor()
 charger_equipes_avec_code(cur, tous_les_matchs)
 charger_tournois(cur, tournois_info)
 charger_stades(cur, tous_les_matchs)
-
+charger_matchs(cur, tous_les_matchs)
 conn.commit()
 
 # 4. Vérifications

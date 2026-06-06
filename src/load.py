@@ -268,3 +268,147 @@ def get_tournoi_id(cur, annee):
     cur.execute("SELECT id FROM tournois WHERE annee = %s", (annee,))
     resultat = cur.fetchone()
     return resultat[0] if resultat else None
+
+
+# ===================================================================
+# FONCTION : CHARGER LES MATCHS
+# ===================================================================
+
+def charger_matchs(cur, matchs):
+    """
+    Parcourt tous les matchs et insère chaque match dans la table matchs.
+    
+    Args:
+        cur: Curseur PostgreSQL
+        matchs: Liste de dictionnaires (chaque dict = un match)
+    """
+    
+    matchs_inseres = 0
+    matchs_ignores = 0
+    
+    for match in matchs:
+        # 1. Récupérer l'ID du tournoi
+        cur.execute("SELECT id FROM tournois WHERE annee = %s", (match['annee'],))
+        result = cur.fetchone()
+        if not result:
+            print(f"⚠️  Tournoi non trouvé pour l'année {match['annee']}")
+            matchs_ignores += 1
+            continue
+        tournoi_id = result[0]
+        
+        # 2. Récupérer l'ID du stade
+        stade_id = None
+        if match.get('stade'):
+            nom_stade = match['stade'].split(',')[0].strip()
+            cur.execute("SELECT id FROM stades WHERE nom = %s", (nom_stade,))
+            result = cur.fetchone()
+            if result:
+                stade_id = result[0]
+        
+        # 3. Récupérer l'ID de l'équipe domicile
+        cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_dom'],))
+        result = cur.fetchone()
+        if not result:
+            print(f"⚠️  Équipe non trouvée: {match['equipe_dom']}")
+            matchs_ignores += 1
+            continue
+        equipe_dom_id = result[0]
+        
+        # 4. Récupérer l'ID de l'équipe extérieure
+        cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_ext'],))
+        result = cur.fetchone()
+        if not result:
+            print(f"⚠️  Équipe non trouvée: {match['equipe_ext']}")
+            matchs_ignores += 1
+            continue
+        equipe_ext_id = result[0]
+        
+        # 5. Construire la date
+        date_match = None
+        if match.get('date') and match['date'].get('jour') and match['date'].get('mois_num'):
+            annee = match['annee']
+            mois = match['date']['mois_num']
+            jour = match['date']['jour']
+            date_match = f"{annee}-{mois:02d}-{jour:02d}"
+        
+        # 6. Déterminer la phase avec la logique améliorée
+        groupe_brut = match.get('groupe', '') or ''
+        
+        if 'Final' in groupe_brut and 'Semi' not in groupe_brut and 'Quarter' not in groupe_brut:
+            phase = "Final"
+        elif 'Semi' in groupe_brut:
+            phase = "Semi-final"
+        elif 'Quarter' in groupe_brut:
+            phase = "Quarter-final"
+        elif 'Third' in groupe_brut:
+            phase = "Third place"
+        elif 'Round' in groupe_brut:
+            phase = "Round of 16"
+        elif 'Group' in groupe_brut:
+            phase = "Group stage"
+        else:
+            phase = groupe_brut.strip('▪ ').strip()
+        
+        # 7. Extraire la lettre du groupe (A, B, C, 1, 2...)
+        groupe = None
+        if match.get('groupe'):
+            import re
+            group_match = re.search(r'Group\s+([A-Z0-9]+)', match['groupe'])
+            if group_match:
+                groupe = group_match.group(1)
+        
+        # 8. Insérer le match
+        cur.execute("""
+            INSERT INTO matchs (
+                tournoi_id, stade_id, equipe_dom_id, equipe_ext_id,
+                score_dom, score_ext, date_match, heure,
+                timezone, phase, groupe, prolongation, tirs_au_but
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            tournoi_id,
+            stade_id,
+            equipe_dom_id,
+            equipe_ext_id,
+            match['score_dom'],
+            match['score_ext'],
+            date_match,
+            match.get('heure'),
+            match.get('timezone'),
+            phase,
+            groupe,
+            match.get('prolongation', False),
+            match.get('tirs_au_but', False)
+        ))
+        
+        matchs_inseres += 1
+    
+    print(f"✅ Matchs insérés : {matchs_inseres}")
+    if matchs_ignores > 0:
+        print(f"⚠️  Matchs ignorés : {matchs_ignores}")
+
+
+
+# ===================================================================
+# FONCTIONS UTILITAIRES 
+# ===================================================================
+
+def get_tournoi_id(cur, annee):
+    """Retourne l'ID du tournoi à partir de l'année"""
+    cur.execute("SELECT id FROM tournois WHERE annee = %s", (annee,))
+    result = cur.fetchone()
+    return result[0] if result else None
+
+def get_stade_id(cur, stade_complet):
+    """Retourne l'ID du stade à partir du nom complet"""
+    if not stade_complet:
+        return None
+    nom_stade = stade_complet.split(',')[0].strip()
+    cur.execute("SELECT id FROM stades WHERE nom = %s", (nom_stade,))
+    result = cur.fetchone()
+    return result[0] if result else None
+
+def get_equipe_id(cur, nom_equipe):
+    """Retourne l'ID de l'équipe à partir de son nom"""
+    cur.execute("SELECT id FROM equipes WHERE nom = %s", (nom_equipe,))
+    result = cur.fetchone()
+    return result[0] if result else None
