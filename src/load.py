@@ -102,6 +102,20 @@ def charger_equipes_avec_code(cur, matchs):
         "New Zealand": "NZL",
         "North Korea": "PRK",
         "Dutch East Indies": "IDN", # Ancien nom de l'Indonésie 
+
+        "Zaire": "ZAI",
+        "Bulgaria": "BUL",
+        "Slovakia": "SVK",
+        "Serbia and Montenegro": "SCG",
+        "China": "CHN",
+        "East Germany": "GDR",
+        "Northern Ireland": "NIR",
+        "Israel": "ISR",
+        "Bosnia-Herzegovina": "BIH",
+        "Ukraine": "UKR",
+        "Iceland": "ISL",
+        "Slovenia": "SVN",
+        "Wales": "WAL",
     }
     
     equipes_uniques = set()
