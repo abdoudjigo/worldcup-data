@@ -8,6 +8,7 @@ from load import (
     charger_stades,
     charger_matchs,
     charger_joueurs,
+    charger_buts,
     get_equipe_id,
     get_tournoi_id,
     get_stade_id
@@ -57,7 +58,7 @@ conn = psycopg2.connect(
 cur = conn.cursor()
 
 
-# Juste avant charger_equipes_avec_code()
+# Pour eviter les doublons lors du chargement, on nettoie les tables avant de charger les nouvelles données
 print("🧹 Nettoyage de la base...")
 cur.execute("TRUNCATE TABLE matchs CASCADE;")
 cur.execute("TRUNCATE TABLE joueurs CASCADE;")
@@ -74,6 +75,7 @@ charger_tournois(cur, tournois_info)
 charger_stades(cur, tous_les_matchs)
 match_ids = charger_matchs(cur, tous_les_matchs)
 charger_joueurs(cur, tous_les_matchs)
+charger_buts(cur, tous_les_matchs, match_ids)
 conn.commit()
 
 # 4. Vérifications

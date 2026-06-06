@@ -16,6 +16,7 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
+
 # ===================================================================
 # FONCTION POUR CHARGER LES ÉQUIPES AVEC LEUR CODE PAYS
 # ===================================================================
@@ -103,8 +104,8 @@ def charger_equipes_avec_code(cur, matchs):
         "Iraq": "IRQ",
         "New Zealand": "NZL",
         "North Korea": "PRK",
-        "Dutch East Indies": "IDN", # Ancien nom de l'Indonésie 
-
+        "Dutch East Indies": "IDN",
+        
         "Zaire": "ZAI",
         "Bulgaria": "BUL",
         "Slovakia": "SVK",
@@ -138,7 +139,6 @@ def charger_equipes_avec_code(cur, matchs):
                 SET code_pays = EXCLUDED.code_pays
             """, (equipe_nom, code))
         else:
-            # Équipe sans code pays
             cur.execute("""
                 INSERT INTO equipes (nom) 
                 VALUES (%s) 
@@ -149,21 +149,14 @@ def charger_equipes_avec_code(cur, matchs):
     print(f"✅ Équipes insérées (doublons ignorés)")
 
 
-
-
 # ===================================================================
 # FONCTION : CHARGER LES TOURNOIS
 # ===================================================================
 
 def charger_tournois(cur, tournois_info: dict):
     """
-    Parcourt tous les matchs et insère les tournois (années) uniques dans la table tournois.
-    
-    Args:
-        cur: Curseur PostgreSQL
-        tournois_info: Dictionnaire contenant les informations sur les tournois {année: pays_hôte}
+    Insère les tournois (années) uniques dans la table tournois.
     """
-    
     for annee, pays_hote in tournois_info.items():
         cur.execute("""
             INSERT INTO tournois (annee, pays_hote) 
@@ -182,19 +175,12 @@ def charger_tournois(cur, tournois_info: dict):
 def charger_stades(cur, matchs):
     """
     Parcourt tous les matchs et insère les stades uniques dans la table stades.
-    
-    Args:
-        cur: Curseur PostgreSQL
-        matchs: Liste de dictionnaires (chaque dict = un match)
     """
-    
-    # Collecter tous les stades uniques
     stades_uniques = {}
     
     for match in matchs:
         stade = match.get('stade')
         if stade and stade not in stades_uniques:
-            # Séparer le nom et la ville (format: "Pocitos, Montevideo")
             if ',' in stade:
                 nom, ville = stade.split(',', 1)
                 nom = nom.strip()
@@ -206,12 +192,11 @@ def charger_stades(cur, matchs):
             stades_uniques[stade] = {
                 'nom': nom,
                 'ville': ville,
-                'pays': None  # À enrichir plus tard
+                'pays': None
             }
     
     print(f"📋 {len(stades_uniques)} stades uniques trouvés")
     
-    # Insérer chaque stade
     for stade_info in stades_uniques.values():
         cur.execute("""
             INSERT INTO stades (nom, ville, pays) 
@@ -223,55 +208,6 @@ def charger_stades(cur, matchs):
 
 
 # ===================================================================
-# FONCTION POUR RÉCUPÉRER L'ID D'UN STADE
-# ===================================================================
-
-def get_stade_id(cur, nom_stade):
-    """
-    Retourne l'ID d'un stade à partir de son nom complet.
-    
-    Args:
-        cur: Curseur PostgreSQL
-        nom_stade: Nom complet du stade (ex: "Pocitos, Montevideo")
-    
-    Returns:
-        int: ID du stade, ou None si non trouvé
-    """
-    if not nom_stade:
-        return None
-    
-    # Extraire le nom seul (sans la ville)
-    if ',' in nom_stade:
-        nom_seul = nom_stade.split(',', 1)[0].strip()
-    else:
-        nom_seul = nom_stade.strip()
-    
-    cur.execute("SELECT id FROM stades WHERE nom = %s", (nom_seul,))
-    resultat = cur.fetchone()
-    return resultat[0] if resultat else None
-
-
-# ===================================================================
-# FONCTION POUR RÉCUPÉRER L'ID D'UN TOURNOI
-# ===================================================================
-
-def get_tournoi_id(cur, annee):
-    """
-    Retourne l'ID d'un tournoi à partir de son année.
-    
-    Args:
-        cur: Curseur PostgreSQL
-        annee: Année du tournoi (ex: 1930)
-    
-    Returns:
-        int: ID du tournoi, ou None si non trouvé
-    """
-    cur.execute("SELECT id FROM tournois WHERE annee = %s", (annee,))
-    resultat = cur.fetchone()
-    return resultat[0] if resultat else None
-
-
-# ===================================================================
 # FONCTION : CHARGER LES MATCHS (avec retour des IDs)
 # ===================================================================
 
@@ -279,20 +215,16 @@ def charger_matchs(cur, matchs):
     """
     Parcourt tous les matchs et insère chaque match dans la table matchs.
     
-    Args:
-        cur: Curseur PostgreSQL
-        matchs: Liste de dictionnaires (chaque dict = un match)
-    
     Returns:
-        dict: Dictionnaire {index: match_id} pour mapper chaque match à son ID
+        dict: Dictionnaire {index: match_id}
     """
     
-    match_ids = {}  # {index: match_id}
+    match_ids = {}
     matchs_inseres = 0
     matchs_ignores = 0
     
     for index, match in enumerate(matchs):
-        # 1. Récupérer l'ID du tournoi
+        # Récupérer l'ID du tournoi
         cur.execute("SELECT id FROM tournois WHERE annee = %s", (match['annee'],))
         result = cur.fetchone()
         if not result:
@@ -301,7 +233,7 @@ def charger_matchs(cur, matchs):
             continue
         tournoi_id = result[0]
         
-        # 2. Récupérer l'ID du stade
+        # Récupérer l'ID du stade
         stade_id = None
         if match.get('stade'):
             nom_stade = match['stade'].split(',')[0].strip()
@@ -310,7 +242,7 @@ def charger_matchs(cur, matchs):
             if result:
                 stade_id = result[0]
         
-        # 3. Récupérer l'ID de l'équipe domicile
+        # Récupérer l'ID de l'équipe domicile
         cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_dom'],))
         result = cur.fetchone()
         if not result:
@@ -319,7 +251,7 @@ def charger_matchs(cur, matchs):
             continue
         equipe_dom_id = result[0]
         
-        # 4. Récupérer l'ID de l'équipe extérieure
+        # Récupérer l'ID de l'équipe extérieure
         cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_ext'],))
         result = cur.fetchone()
         if not result:
@@ -328,7 +260,7 @@ def charger_matchs(cur, matchs):
             continue
         equipe_ext_id = result[0]
         
-        # 5. Construire la date
+        # Construire la date
         date_match = None
         if match.get('date') and match['date'].get('jour') and match['date'].get('mois_num'):
             annee = match['annee']
@@ -336,7 +268,7 @@ def charger_matchs(cur, matchs):
             jour = match['date']['jour']
             date_match = f"{annee}-{mois:02d}-{jour:02d}"
         
-        # 6. Déterminer la phase
+        # Déterminer la phase
         groupe_brut = match.get('groupe', '') or ''
         
         if 'Final' in groupe_brut and 'Semi' not in groupe_brut and 'Quarter' not in groupe_brut:
@@ -354,14 +286,14 @@ def charger_matchs(cur, matchs):
         else:
             phase = groupe_brut.strip('▪ ').strip()
         
-        # 7. Extraire la lettre du groupe
+        # Extraire la lettre du groupe
         groupe = None
         if match.get('groupe'):
             group_match = re.search(r'Group\s+([A-Z0-9]+)', match['groupe'])
             if group_match:
                 groupe = group_match.group(1)
         
-        # 8. Insérer le match et récupérer l'ID
+        # Insérer le match
         cur.execute("""
             INSERT INTO matchs (
                 tournoi_id, stade_id, equipe_dom_id, equipe_ext_id,
@@ -370,19 +302,10 @@ def charger_matchs(cur, matchs):
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (
-            tournoi_id,
-            stade_id,
-            equipe_dom_id,
-            equipe_ext_id,
-            match['score_dom'],
-            match['score_ext'],
-            date_match,
-            match.get('heure'),
-            match.get('timezone'),
-            phase,
-            groupe,
-            match.get('prolongation', False),
-            match.get('tirs_au_but', False)
+            tournoi_id, stade_id, equipe_dom_id, equipe_ext_id,
+            match['score_dom'], match['score_ext'], date_match, match.get('heure'),
+            match.get('timezone'), phase, groupe,
+            match.get('prolongation', False), match.get('tirs_au_but', False)
         ))
         
         match_id = cur.fetchone()[0]
@@ -396,20 +319,17 @@ def charger_matchs(cur, matchs):
     return match_ids
 
 
-
-
 # ===================================================================
-# FONCTIONS UTILITAIRES 
+# FONCTIONS UTILITAIRES
 # ===================================================================
 
 def get_tournoi_id(cur, annee):
-    """Retourne l'ID du tournoi à partir de l'année"""
     cur.execute("SELECT id FROM tournois WHERE annee = %s", (annee,))
     result = cur.fetchone()
     return result[0] if result else None
 
+
 def get_stade_id(cur, stade_complet):
-    """Retourne l'ID du stade à partir du nom complet"""
     if not stade_complet:
         return None
     nom_stade = stade_complet.split(',')[0].strip()
@@ -417,11 +337,35 @@ def get_stade_id(cur, stade_complet):
     result = cur.fetchone()
     return result[0] if result else None
 
+
 def get_equipe_id(cur, nom_equipe):
-    """Retourne l'ID de l'équipe à partir de son nom"""
     cur.execute("SELECT id FROM equipes WHERE nom = %s", (nom_equipe,))
     result = cur.fetchone()
     return result[0] if result else None
+
+
+# ===================================================================
+# FONCTION : NETTOYER UN NOM DE JOUEUR
+# ===================================================================
+
+def nettoyer_nom_joueur(joueur_brut: str) -> list:
+    """
+    Prend une chaîne brute et retourne une liste de noms propres.
+    Gère : séparateurs " - ", remplacements, cartons, parenthèses.
+    """
+    joueur_brut = joueur_brut.strip().lstrip('(')
+    joueur_brut = re.sub(r'\s*\[[^\]]*\]\s*', ' ', joueur_brut)
+    joueur_brut = re.sub(r'\(?\d+\+?\d*\'[^)]*\)?', '', joueur_brut)
+    joueur_brut = re.sub(r'[()]', '', joueur_brut)
+    noms = joueur_brut.split(' - ')
+    
+    resultats = []
+    for nom in noms:
+        nom = re.sub(r'\s+', ' ', nom).strip()
+        if len(nom) >= 2 and any(c.isalpha() for c in nom):
+            resultats.append(nom)
+    
+    return resultats
 
 
 # ===================================================================
@@ -431,46 +375,32 @@ def get_equipe_id(cur, nom_equipe):
 def charger_joueurs(cur, matchs):
     """
     Parcourt tous les matchs et insère les joueurs uniques dans la table joueurs.
-    
     """
-    
-    # Ensemble pour stocker les joueurs uniques (nom, equipe_id)
     joueurs_uniques = set()
     
     for match in matchs:
-        # Récupérer l'ID de l'équipe domicile
         cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_dom'],))
         result = cur.fetchone()
         equipe_dom_id = result[0] if result else None
         
-        # Récupérer l'ID de l'équipe extérieure
         cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_ext'],))
         result = cur.fetchone()
         equipe_ext_id = result[0] if result else None
         
-        # Traiter composition domicile
         if match.get('composition_dom') and match['composition_dom'].get('joueurs_bruts'):
             for joueur_brut in match['composition_dom']['joueurs_bruts']:
-                # Nettoyer le nom du joueur (enlever [c], [Y], [R], etc.)
-                nom_propre = re.sub(r'\s*\[[^\]]+\]\s*', ' ', joueur_brut)
-                nom_propre = re.sub(r'\s+', ' ', nom_propre).strip()
-                
-                if nom_propre and equipe_dom_id:
-                    joueurs_uniques.add((nom_propre, equipe_dom_id))
+                for nom_propre in nettoyer_nom_joueur(joueur_brut):
+                    if nom_propre and equipe_dom_id:
+                        joueurs_uniques.add((nom_propre, equipe_dom_id))
         
-        # Traiter composition extérieure
         if match.get('composition_ext') and match['composition_ext'].get('joueurs_bruts'):
             for joueur_brut in match['composition_ext']['joueurs_bruts']:
-                # Nettoyer le nom du joueur (enlever [c], [Y], [R], etc.)
-                nom_propre = re.sub(r'\s*\[[^\]]+\]\s*', ' ', joueur_brut)
-                nom_propre = re.sub(r'\s+', ' ', nom_propre).strip()
-                
-                if nom_propre and equipe_ext_id:
-                    joueurs_uniques.add((nom_propre, equipe_ext_id))
+                for nom_propre in nettoyer_nom_joueur(joueur_brut):
+                    if nom_propre and equipe_ext_id:
+                        joueurs_uniques.add((nom_propre, equipe_ext_id))
     
     print(f"📋 {len(joueurs_uniques)} joueurs uniques trouvés")
     
-    # Insérer chaque joueur
     joueurs_inseres = 0
     for nom, equipe_id in joueurs_uniques:
         cur.execute("""
@@ -478,7 +408,6 @@ def charger_joueurs(cur, matchs):
             VALUES (%s, %s) 
             ON CONFLICT (nom, equipe_id) DO NOTHING
         """, (nom, equipe_id))
-        
         if cur.rowcount > 0:
             joueurs_inseres += 1
     
@@ -486,24 +415,96 @@ def charger_joueurs(cur, matchs):
 
 
 # ===================================================================
-# FONCTION POUR RÉCUPÉRER L'ID D'UN JOUEUR
+# FONCTIONS POUR LES BUTS
 # ===================================================================
 
-def get_joueur_id(cur, nom_joueur, equipe_id):
-    """
-    Retourne l'ID d'un joueur à partir de son nom et de son équipe.
-    
-    Args:
-        cur: Curseur PostgreSQL
-        nom_joueur: Nom du joueur
-        equipe_id: ID de l'équipe
-    
-    Returns:
-        int: ID du joueur, ou None si non trouvé
-    """
+def get_joueur_id_par_equipe(cur, nom_joueur, nom_equipe):
+    """Retourne l'ID d'un joueur à partir de son nom et du nom de son équipe"""
     cur.execute("""
-        SELECT id FROM joueurs 
-        WHERE nom = %s AND equipe_id = %s
-    """, (nom_joueur, equipe_id))
+        SELECT j.id FROM joueurs j
+        JOIN equipes e ON j.equipe_id = e.id
+        WHERE j.nom = %s AND e.nom = %s
+    """, (nom_joueur, nom_equipe))
     result = cur.fetchone()
     return result[0] if result else None
+
+
+def nettoyer_nom_buteur(nom: str) -> str:
+    """Nettoie le nom d'un buteur"""
+    nom = nom.lstrip('(').strip()
+    nom = re.sub(r'\s*\[[^\]]*\].*', '', nom).strip()
+    if ' - ' in nom:
+        nom = nom.split(' - ')[0].strip()
+    return nom
+
+
+def charger_buts(cur, matchs, match_ids):
+    """Version finale - cherche le joueur dans les deux équipes si nécessaire"""
+    buts_inseres = 0
+    buts_ignores = 0
+
+    for index, match in enumerate(matchs):
+        match_id = match_ids.get(index)
+        if not match_id:
+            buts_ignores += 1
+            continue
+
+        # Traiter les buteurs domicile
+        for buteur in match.get('buteurs_dom', []):
+            nom = nettoyer_nom_buteur(buteur['nom'])
+            if not nom:
+                buts_ignores += 1
+                continue
+            
+            # 1. Chercher dans equipe_dom d'abord
+            joueur_id = get_joueur_id_par_equipe(cur, nom, match['equipe_dom'])
+            
+            # 2. Si pas trouvé, chercher dans equipe_ext (cas: Brazil v France 0-3)
+            if not joueur_id:
+                joueur_id = get_joueur_id_par_equipe(cur, nom, match['equipe_ext'])
+            
+            if not joueur_id:
+                print(f"⚠️  Joueur non trouvé: {nom}")
+                buts_ignores += 1
+                continue
+            
+            cur.execute("SELECT equipe_id FROM joueurs WHERE id = %s", (joueur_id,))
+            equipe_id = cur.fetchone()[0]
+            
+            cur.execute("""
+                INSERT INTO buts (match_id, joueur_id, equipe_id, minute, type)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (match_id, joueur_id, equipe_id, buteur['minute'], buteur['type']))
+            buts_inseres += 1
+
+        # Traiter les buteurs extérieur
+        for buteur in match.get('buteurs_ext', []):
+            nom = nettoyer_nom_buteur(buteur['nom'])
+            if not nom:
+                buts_ignores += 1
+                continue
+            
+            # 1. Chercher dans equipe_ext d'abord
+            joueur_id = get_joueur_id_par_equipe(cur, nom, match['equipe_ext'])
+            
+            # 2. Si pas trouvé, chercher dans equipe_dom
+            if not joueur_id:
+                joueur_id = get_joueur_id_par_equipe(cur, nom, match['equipe_dom'])
+            
+            if not joueur_id:
+                print(f"⚠️  Joueur non trouvé: {nom}")
+                buts_ignores += 1
+                continue
+            
+            cur.execute("SELECT equipe_id FROM joueurs WHERE id = %s", (joueur_id,))
+            equipe_id = cur.fetchone()[0]
+            
+            cur.execute("""
+                INSERT INTO buts (match_id, joueur_id, equipe_id, minute, type)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (match_id, joueur_id, equipe_id, buteur['minute'], buteur['type']))
+            buts_inseres += 1
+
+    print(f"✅ Buts insérés : {buts_inseres}")
+    if buts_ignores > 0:
+        print(f"⚠️  Buts ignorés : {buts_ignores}")

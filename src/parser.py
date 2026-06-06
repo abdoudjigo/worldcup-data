@@ -414,7 +414,6 @@ def parser_fichier(chemin: str) -> list:
             parties = ligne_complete.split()
             
             # Extraire la date (3 premiers éléments)
-            # parties[0] = "Sun", parties[1] = "Jul", parties[2] = "13"
             jour_semaine = parties[0]
             mois = parties[1]
             jour = int(parties[2])
@@ -432,20 +431,17 @@ def parser_fichier(chemin: str) -> list:
                 'mois_num': mois_map.get(mois, 0)
             }
             
-            # Extraire l'heure (4ème élément) et timezone (5ème élément)
-            # parties[3] = "15:00", parties[4] = "UTC-3"
+            # Extraire l'heure et timezone
             heure_actuelle = parties[3]
             timezone_actuelle = parties[4]
             
-            # Extraire le stade (tout ce qui est après @)
-            # Exemple: "Sun Jul 13 15:00 UTC-3 @ Pocitos, Montevideo"
-            # On cherche la position de '@'
+            # Extraire le stade
             if '@' in ligne_complete:
                 stade_actuel = ligne_complete.split('@', 1)[1].strip()
             else:
                 stade_actuel = None
             
-            # Créer un nouveau match vide avec les infos collectées
+            # Créer un nouveau match vide
             match_actuel = {
                 'groupe': groupe_actuel,
                 'date': date_actuelle,
@@ -470,9 +466,8 @@ def parser_fichier(chemin: str) -> list:
             i += 1
             continue
         
-        # 3. Détection d'une ligne de match (format: "  France v Mexico  4-1")
+        # 3. Détection d'une ligne de match
         if ' v ' in ligne and re.search(r'\d+-\d+', ligne):
-            # Parser le match
             infos_match = parser_match_sans_stade(ligne)
             if match_actuel:
                 match_actuel['equipe_dom'] = infos_match['equipe_dom']
@@ -491,47 +486,73 @@ def parser_fichier(chemin: str) -> list:
             i += 1
             continue
         
-        # 5. Suite des buteurs (accumulation)
+        # 5. Suite des buteurs (accumulation) - VERSION CORRIGÉE
         if ligne_buteurs_en_cours:
-            texte_buteurs += ' ' + ligne
-            if ')' in ligne:
-                buteurs = parser_ligne_buteur(texte_buteurs)
-                if match_actuel:
-                    match_actuel['buteurs_dom'] = buteurs['buteurs_dom']
-                    match_actuel['buteurs_ext'] = buteurs['buteurs_ext']
+            # 🔴 VÉRIFICATION CRITIQUE : Si la ligne contient une composition d'équipe
+            # Cela signifie qu'on a terminé les buteurs
+            if re.match(r'^[A-Z][a-zA-Z\s]+:', ligne.strip()):
+                # Fin de la section buteurs
+                if texte_buteurs and ')' not in texte_buteurs:
+                    texte_buteurs += ')'
+                
+                if texte_buteurs:
+                    try:
+                        buteurs = parser_ligne_buteur(texte_buteurs)
+                        if match_actuel:
+                            match_actuel['buteurs_dom'] = buteurs['buteurs_dom']
+                            match_actuel['buteurs_ext'] = buteurs['buteurs_ext']
+                    except Exception as e:
+                        print(f"⚠️  Erreur parsing buteurs: {e}")
+                
                 ligne_buteurs_en_cours = False
-            i += 1
-            continue
+                texte_buteurs = None
+                # Cette ligne sera traitée par l'étape 6 (compositions)
+                # Ne pas incrémenter i ici
+                continue
+            
+            else:
+                # Accumulation normale
+                texte_buteurs += ' ' + ligne
+                if ')' in ligne:
+                    try:
+                        buteurs = parser_ligne_buteur(texte_buteurs)
+                        if match_actuel:
+                            match_actuel['buteurs_dom'] = buteurs['buteurs_dom']
+                            match_actuel['buteurs_ext'] = buteurs['buteurs_ext']
+                    except Exception as e:
+                        print(f"⚠️  Erreur parsing buteurs: {e}")
+                    ligne_buteurs_en_cours = False
+                    texte_buteurs = None
+                
+                i += 1
+                continue
         
-        # 6. Détection des compositions d'équipes (format: "France: Alex THEPOT...")
+        # 6. Détection des compositions d'équipes
         if re.match(r'^[A-Z][a-zA-Z\s]+:', ligne.strip()) and not ligne.strip().startswith('Refs:'):
             texte_composition = ligne
             # Accumuler les lignes suivantes indentées
             j = i + 1
             while j < len(lignes):
                 ligne_suivante = lignes[j].rstrip('\n')
-                if ligne_suivante.startswith('      '):  # ligne indentée = suite
+                if ligne_suivante.startswith('      '):
                     texte_composition += ' ' + ligne_suivante.strip()
                     j += 1
                 else:
                     break
-            i = j - 1  # Mettre à jour i pour sauter les lignes de composition accumulées
-            # Parser la composition complète
+            i = j - 1
+            # Parser la composition
             if match_actuel:
-                # Extraire le nom de l'équipe depuis la ligne
                 nom_equipe = ligne.split(':', 1)[0].strip()
-                # Vérifier si c'est l'équipe domicile ou extérieure
                 if match_actuel['equipe_dom'] and nom_equipe == match_actuel['equipe_dom']:
                     match_actuel['composition_dom'] = parser_composition(texte_composition)
                 elif match_actuel['equipe_ext'] and nom_equipe == match_actuel['equipe_ext']:
                     match_actuel['composition_ext'] = parser_composition(texte_composition)
-                # Si on n'a pas encore les équipes, on regarde le début de la ligne
                 elif not match_actuel['composition_dom']:
                     match_actuel['composition_dom'] = parser_composition(texte_composition)
             i += 1
             continue
         
-        # 7. Détection des arbitres (format: "Refs: ...")
+        # 7. Détection des arbitres
         if ligne.strip().startswith('Refs:'):
             if match_actuel:
                 match_actuel['arbitres'] = parser_arbitres(ligne)
