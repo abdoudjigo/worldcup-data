@@ -236,23 +236,19 @@ def parser_date(ligne_date: str) -> dict:
 #================================================================
 #============= FONCTION PARSER MATCH SANS STADE =================
 #================================================================
-
 def parser_match_sans_stade(ligne: str) -> dict:
     """
     Parse une ligne de match comme '  France v Mexico  4-1'
+    ou '  Argentina v France  3-3 a.e.t., 4-2 pen.'
     (sans heure, sans stade)
-    
-    Returns:
-        dict: {
-            'equipe_dom': str,
-            'equipe_ext': str,
-            'score_dom': int,
-            'score_ext': int
-        }
     """
     ligne = ligne.strip()
     
-    # Extraire le score
+    # Détecter la prolongation et les tirs au but
+    prolongation = 'a.e.t.' in ligne
+    tirs_au_but = 'pen.' in ligne
+    
+    # Extraire le score (ex: "3-3" ou "4-2")
     score_match = re.search(r'(\d+)-(\d+)', ligne)
     if not score_match:
         raise ValueError(f"Score invalide: {ligne}")
@@ -264,7 +260,15 @@ def parser_match_sans_stade(ligne: str) -> dict:
     # Enlever le score pour avoir les équipes
     sans_score = ligne.replace(score_texte, '').strip()
     
-    # Séparer par ' v '
+    # =================================================================
+    # Nettoyer les mentions de prolongation et tirs au but
+    # Enlève "a.e.t." et tout ce qui suit (ex: "a.e.t., 4-2 pen.")
+    sans_score = re.sub(r'\s*a\.e\.t\..*', '', sans_score)
+    # Enlève les parenthèses et leur contenu (ex: (a.e.t.))
+    sans_score = re.sub(r'\s*\([^)]*\)', '', sans_score)
+    
+    # =================================================================
+    # Séparer les deux équipes avec ' v '
     if ' v ' not in sans_score:
         raise ValueError(f"Séparateur ' v ' non trouvé: {sans_score}")
     
@@ -274,7 +278,9 @@ def parser_match_sans_stade(ligne: str) -> dict:
         'equipe_dom': equipe_dom.strip(),
         'equipe_ext': equipe_ext.strip(),
         'score_dom': score_dom,
-        'score_ext': score_ext
+        'score_ext': score_ext,
+        'prolongation': prolongation,
+        'tirs_au_but': tirs_au_but
     }
 
 
@@ -450,6 +456,8 @@ def parser_fichier(chemin: str) -> list:
                 'equipe_ext': None,
                 'score_dom': None,
                 'score_ext': None,
+                'prolongation': False,
+                'tirs_au_but': False,
                 'buteurs_dom': [],
                 'buteurs_ext': [],
                 'composition_dom': None,
@@ -471,6 +479,8 @@ def parser_fichier(chemin: str) -> list:
                 match_actuel['equipe_ext'] = infos_match['equipe_ext']
                 match_actuel['score_dom'] = infos_match['score_dom']
                 match_actuel['score_ext'] = infos_match['score_ext']
+                match_actuel['prolongation'] = infos_match['prolongation'] 
+                match_actuel['tirs_au_but'] = infos_match['tirs_au_but']
             i += 1
             continue
         
@@ -497,25 +507,27 @@ def parser_fichier(chemin: str) -> list:
         if re.match(r'^[A-Z][a-zA-Z\s]+:', ligne.strip()) and not ligne.strip().startswith('Refs:'):
             texte_composition = ligne
             # Accumuler les lignes suivantes indentées
-            while i + 1 < len(lignes):
-                ligne_suivante = lignes[i + 1].rstrip('\n')
+            j = i + 1
+            while j < len(lignes):
+                ligne_suivante = lignes[j].rstrip('\n')
                 if ligne_suivante.startswith('      '):  # ligne indentée = suite
                     texte_composition += ' ' + ligne_suivante.strip()
-                    i += 1
+                    j += 1
                 else:
                     break
+            i = j - 1  # Mettre à jour i pour sauter les lignes de composition accumulées
             # Parser la composition complète
             if match_actuel:
+                # Extraire le nom de l'équipe depuis la ligne
+                nom_equipe = ligne.split(':', 1)[0].strip()
                 # Vérifier si c'est l'équipe domicile ou extérieure
-                if match_actuel['equipe_dom'] and match_actuel['equipe_dom'] in ligne:
+                if match_actuel['equipe_dom'] and nom_equipe == match_actuel['equipe_dom']:
                     match_actuel['composition_dom'] = parser_composition(texte_composition)
-                elif match_actuel['equipe_ext'] and match_actuel['equipe_ext'] in ligne:
+                elif match_actuel['equipe_ext'] and nom_equipe == match_actuel['equipe_ext']:
                     match_actuel['composition_ext'] = parser_composition(texte_composition)
                 # Si on n'a pas encore les équipes, on regarde le début de la ligne
-                elif ligne.startswith('France:'):
+                elif not match_actuel['composition_dom']:
                     match_actuel['composition_dom'] = parser_composition(texte_composition)
-                elif ligne.startswith('Mexico:'):
-                    match_actuel['composition_ext'] = parser_composition(texte_composition)
             i += 1
             continue
         

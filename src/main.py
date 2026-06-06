@@ -1,4 +1,5 @@
 # Cette fonction lit un fichier texte et retourne une liste de matchs
+from load import charger_equipes_avec_code
 from parser import parser_fichier
 # Cette fonction sauvegarde une liste de matchs dans un fichier JSON
 from utils import sauvegarder_json
