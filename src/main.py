@@ -10,6 +10,7 @@ from load import (
     charger_joueurs,
     charger_buts,
     charger_arbitres,
+    charger_compositions,
     get_equipe_id,
     get_tournoi_id,
     get_stade_id,
@@ -79,6 +80,7 @@ match_ids = charger_matchs(cur, tous_les_matchs)
 charger_joueurs(cur, tous_les_matchs)
 charger_buts(cur, tous_les_matchs, match_ids)
 charger_arbitres(cur, tous_les_matchs, match_ids)
+charger_compositions(cur, tous_les_matchs, match_ids)
 conn.commit()
 
 # 4. Vérifications
@@ -98,6 +100,9 @@ cur.execute("SELECT COUNT(*) FROM matchs_arbitres")
 print(f"Matchs_arbitres: {cur.fetchone()[0]}")
 cur.execute("SELECT COUNT(*) FROM buts")
 print(f"Buts: {cur.fetchone()[0]}")
+
+cur.execute("SELECT COUNT(*) FROM compositions")
+print(f"Compositions: {cur.fetchone()[0]}")
 
 cur.close()
 conn.close()

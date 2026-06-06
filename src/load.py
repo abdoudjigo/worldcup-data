@@ -617,3 +617,162 @@ def get_arbitre_id(cur, nom_arbitre):
     cur.execute("SELECT id FROM arbitres WHERE nom = %s", (nom_arbitre,))
     result = cur.fetchone()
     return result[0] if result else None
+
+
+
+# ===================================================================
+# FONCTION : CHARGER LES COMPOSITIONS
+# ===================================================================
+
+def charger_compositions(cur, matchs, match_ids):
+    """
+    Parcourt tous les matchs et insère les compositions (joueurs titulaires)
+    dans la table compositions.
+    
+    Args:
+        cur: Curseur PostgreSQL
+        matchs: Liste de dictionnaires (chaque dict = un match)
+        match_ids: Dictionnaire {index: match_id} pour mapper chaque match à son ID
+    """
+    
+    compositions_inserees = 0
+    compositions_ignores = 0
+    
+    for index, match in enumerate(matchs):
+        match_id = match_ids.get(index)
+        if not match_id:
+            compositions_ignores += 1
+            continue
+        
+        # Traiter composition domicile
+        if match.get('composition_dom') and match['composition_dom'].get('joueurs_bruts'):
+            # Récupérer l'ID de l'équipe domicile
+            cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_dom'],))
+            result = cur.fetchone()
+            if not result:
+                print(f"⚠️  Équipe non trouvée: {match['equipe_dom']}")
+                compositions_ignores += 1
+            else:
+                equipe_id = result[0]
+                
+                for joueur_brut in match['composition_dom']['joueurs_bruts']:
+                    noms_propres = nettoyer_nom_joueur(joueur_brut)
+                    for nom_propre in noms_propres:
+                        if not nom_propre:
+                            continue
+                        
+                        # Chercher le joueur dans la table joueurs
+                        cur.execute("""
+                            SELECT id FROM joueurs 
+                            WHERE nom = %s AND equipe_id = %s
+                        """, (nom_propre, equipe_id))
+                        result = cur.fetchone()
+                        
+                        if not result:
+                            print(f"⚠️  Joueur non trouvé: {nom_propre} ({match['equipe_dom']})")
+                            compositions_ignores += 1
+                            continue
+                        
+                        joueur_id = result[0]
+                        
+                        # Déterminer si c'est le capitaine ([c] dans le nom)
+                        est_capitaine = ' [c]' in joueur_brut or ' [c' in joueur_brut
+                        
+                        # Insérer la composition
+                        cur.execute("""
+                            INSERT INTO compositions (match_id, joueur_id, equipe_id, est_capitaine)
+                            VALUES (%s, %s, %s, %s)
+                            ON CONFLICT (match_id, joueur_id) DO NOTHING
+                        """, (match_id, joueur_id, equipe_id, est_capitaine))
+                        
+                        if cur.rowcount > 0:
+                            compositions_inserees += 1
+        
+        # Traiter composition extérieure
+        if match.get('composition_ext') and match['composition_ext'].get('joueurs_bruts'):
+            # Récupérer l'ID de l'équipe extérieure
+            cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_ext'],))
+            result = cur.fetchone()
+            if not result:
+                print(f"⚠️  Équipe non trouvée: {match['equipe_ext']}")
+                compositions_ignores += 1
+            else:
+                equipe_id = result[0]
+                
+                for joueur_brut in match['composition_ext']['joueurs_bruts']:
+                    noms_propres = nettoyer_nom_joueur(joueur_brut)
+                    for nom_propre in noms_propres:
+                        if not nom_propre:
+                            continue
+                        
+                        # Chercher le joueur dans la table joueurs
+                        cur.execute("""
+                            SELECT id FROM joueurs 
+                            WHERE nom = %s AND equipe_id = %s
+                        """, (nom_propre, equipe_id))
+                        result = cur.fetchone()
+                        
+                        if not result:
+                            print(f"⚠️  Joueur non trouvé: {nom_propre} ({match['equipe_ext']})")
+                            compositions_ignores += 1
+                            continue
+                        
+                        joueur_id = result[0]
+                        
+                        # Déterminer si c'est le capitaine ([c] dans le nom)
+                        est_capitaine = ' [c]' in joueur_brut or ' [c' in joueur_brut
+                        
+                        # Insérer la composition
+                        cur.execute("""
+                            INSERT INTO compositions (match_id, joueur_id, equipe_id, est_capitaine)
+                            VALUES (%s, %s, %s, %s)
+                            ON CONFLICT (match_id, joueur_id) DO NOTHING
+                        """, (match_id, joueur_id, equipe_id, est_capitaine))
+                        
+                        if cur.rowcount > 0:
+                            compositions_inserees += 1
+    
+    print(f"✅ Compositions insérées : {compositions_inserees}")
+    if compositions_ignores > 0:
+        print(f"⚠️  Compositions ignorées : {compositions_ignores}")
+
+
+# ===================================================================
+# FONCTION POUR RÉCUPÉRER LES JOUEURS D'UN MATCH
+# ===================================================================
+
+def get_compositions_par_match(cur, match_id):
+    """
+    Retourne la liste des joueurs (id, nom, equipe_id, est_capitaine) pour un match.
+    
+    Args:
+        cur: Curseur PostgreSQL
+        match_id: ID du match
+    
+    Returns:
+        list: Liste de dictionnaires
+    """
+    cur.execute("""
+        SELECT 
+            c.joueur_id,
+            j.nom as joueur_nom,
+            c.equipe_id,
+            e.nom as equipe_nom,
+            c.est_capitaine
+        FROM compositions c
+        JOIN joueurs j ON c.joueur_id = j.id
+        JOIN equipes e ON c.equipe_id = e.id
+        WHERE c.match_id = %s
+    """, (match_id,))
+    
+    resultats = []
+    for row in cur.fetchall():
+        resultats.append({
+            'joueur_id': row[0],
+            'joueur_nom': row[1],
+            'equipe_id': row[2],
+            'equipe_nom': row[3],
+            'est_capitaine': row[4]
+        })
+    
+    return resultats
