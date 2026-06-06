@@ -272,7 +272,7 @@ def get_tournoi_id(cur, annee):
 
 
 # ===================================================================
-# FONCTION : CHARGER LES MATCHS
+# FONCTION : CHARGER LES MATCHS (avec retour des IDs)
 # ===================================================================
 
 def charger_matchs(cur, matchs):
@@ -282,12 +282,16 @@ def charger_matchs(cur, matchs):
     Args:
         cur: Curseur PostgreSQL
         matchs: Liste de dictionnaires (chaque dict = un match)
+    
+    Returns:
+        dict: Dictionnaire {index: match_id} pour mapper chaque match à son ID
     """
     
+    match_ids = {}  # {index: match_id}
     matchs_inseres = 0
     matchs_ignores = 0
     
-    for match in matchs:
+    for index, match in enumerate(matchs):
         # 1. Récupérer l'ID du tournoi
         cur.execute("SELECT id FROM tournois WHERE annee = %s", (match['annee'],))
         result = cur.fetchone()
@@ -332,7 +336,7 @@ def charger_matchs(cur, matchs):
             jour = match['date']['jour']
             date_match = f"{annee}-{mois:02d}-{jour:02d}"
         
-        # 6. Déterminer la phase avec la logique améliorée
+        # 6. Déterminer la phase
         groupe_brut = match.get('groupe', '') or ''
         
         if 'Final' in groupe_brut and 'Semi' not in groupe_brut and 'Quarter' not in groupe_brut:
@@ -350,21 +354,21 @@ def charger_matchs(cur, matchs):
         else:
             phase = groupe_brut.strip('▪ ').strip()
         
-        # 7. Extraire la lettre du groupe (A, B, C, 1, 2...)
+        # 7. Extraire la lettre du groupe
         groupe = None
         if match.get('groupe'):
-            import re
             group_match = re.search(r'Group\s+([A-Z0-9]+)', match['groupe'])
             if group_match:
                 groupe = group_match.group(1)
         
-        # 8. Insérer le match
+        # 8. Insérer le match et récupérer l'ID
         cur.execute("""
             INSERT INTO matchs (
                 tournoi_id, stade_id, equipe_dom_id, equipe_ext_id,
                 score_dom, score_ext, date_match, heure,
                 timezone, phase, groupe, prolongation, tirs_au_but
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             tournoi_id,
             stade_id,
@@ -381,11 +385,16 @@ def charger_matchs(cur, matchs):
             match.get('tirs_au_but', False)
         ))
         
+        match_id = cur.fetchone()[0]
+        match_ids[index] = match_id
         matchs_inseres += 1
     
     print(f"✅ Matchs insérés : {matchs_inseres}")
     if matchs_ignores > 0:
         print(f"⚠️  Matchs ignorés : {matchs_ignores}")
+    
+    return match_ids
+
 
 
 

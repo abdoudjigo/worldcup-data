@@ -56,10 +56,23 @@ conn = psycopg2.connect(
 )
 cur = conn.cursor()
 
+
+# Juste avant charger_equipes_avec_code()
+print("🧹 Nettoyage de la base...")
+cur.execute("TRUNCATE TABLE matchs CASCADE;")
+cur.execute("TRUNCATE TABLE joueurs CASCADE;")
+cur.execute("TRUNCATE TABLE stades CASCADE;")
+cur.execute("TRUNCATE TABLE tournois CASCADE;")
+cur.execute("TRUNCATE TABLE equipes CASCADE;")
+conn.commit()
+print("✅ Base nettoyée")
+
+
+
 charger_equipes_avec_code(cur, tous_les_matchs)
 charger_tournois(cur, tournois_info)
 charger_stades(cur, tous_les_matchs)
-charger_matchs(cur, tous_les_matchs)
+match_ids = charger_matchs(cur, tous_les_matchs)
 charger_joueurs(cur, tous_les_matchs)
 conn.commit()
 
@@ -70,6 +83,10 @@ cur.execute("SELECT COUNT(*) FROM tournois")
 print(f"Tournois: {cur.fetchone()[0]}")
 cur.execute("SELECT COUNT(*) FROM stades")
 print(f"Stades: {cur.fetchone()[0]}")
+cur.execute("SELECT COUNT(*) FROM matchs")
+print(f"Matchs: {cur.fetchone()[0]}")
+cur.execute("SELECT COUNT(*) FROM joueurs")
+print(f"Joueurs: {cur.fetchone()[0]}")
 
 cur.close()
 conn.close()
