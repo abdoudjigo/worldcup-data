@@ -7,6 +7,7 @@ from load import (
     charger_tournois,
     charger_stades,
     charger_matchs,
+    charger_joueurs,
     get_equipe_id,
     get_tournoi_id,
     get_stade_id
@@ -59,6 +60,7 @@ charger_equipes_avec_code(cur, tous_les_matchs)
 charger_tournois(cur, tournois_info)
 charger_stades(cur, tous_les_matchs)
 charger_matchs(cur, tous_les_matchs)
+charger_joueurs(cur, tous_les_matchs)
 conn.commit()
 
 # 4. Vérifications

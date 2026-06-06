@@ -1,4 +1,5 @@
 # import_data.py
+import re
 import psycopg2
 import json
 import os
@@ -410,5 +411,90 @@ def get_stade_id(cur, stade_complet):
 def get_equipe_id(cur, nom_equipe):
     """Retourne l'ID de l'équipe à partir de son nom"""
     cur.execute("SELECT id FROM equipes WHERE nom = %s", (nom_equipe,))
+    result = cur.fetchone()
+    return result[0] if result else None
+
+
+# ===================================================================
+# FONCTION : CHARGER LES JOUEURS
+# ===================================================================
+
+def charger_joueurs(cur, matchs):
+    """
+    Parcourt tous les matchs et insère les joueurs uniques dans la table joueurs.
+    
+    """
+    
+    # Ensemble pour stocker les joueurs uniques (nom, equipe_id)
+    joueurs_uniques = set()
+    
+    for match in matchs:
+        # Récupérer l'ID de l'équipe domicile
+        cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_dom'],))
+        result = cur.fetchone()
+        equipe_dom_id = result[0] if result else None
+        
+        # Récupérer l'ID de l'équipe extérieure
+        cur.execute("SELECT id FROM equipes WHERE nom = %s", (match['equipe_ext'],))
+        result = cur.fetchone()
+        equipe_ext_id = result[0] if result else None
+        
+        # Traiter composition domicile
+        if match.get('composition_dom') and match['composition_dom'].get('joueurs_bruts'):
+            for joueur_brut in match['composition_dom']['joueurs_bruts']:
+                # Nettoyer le nom du joueur (enlever [c], [Y], [R], etc.)
+                nom_propre = re.sub(r'\s*\[[^\]]+\]\s*', ' ', joueur_brut)
+                nom_propre = re.sub(r'\s+', ' ', nom_propre).strip()
+                
+                if nom_propre and equipe_dom_id:
+                    joueurs_uniques.add((nom_propre, equipe_dom_id))
+        
+        # Traiter composition extérieure
+        if match.get('composition_ext') and match['composition_ext'].get('joueurs_bruts'):
+            for joueur_brut in match['composition_ext']['joueurs_bruts']:
+                # Nettoyer le nom du joueur (enlever [c], [Y], [R], etc.)
+                nom_propre = re.sub(r'\s*\[[^\]]+\]\s*', ' ', joueur_brut)
+                nom_propre = re.sub(r'\s+', ' ', nom_propre).strip()
+                
+                if nom_propre and equipe_ext_id:
+                    joueurs_uniques.add((nom_propre, equipe_ext_id))
+    
+    print(f"📋 {len(joueurs_uniques)} joueurs uniques trouvés")
+    
+    # Insérer chaque joueur
+    joueurs_inseres = 0
+    for nom, equipe_id in joueurs_uniques:
+        cur.execute("""
+            INSERT INTO joueurs (nom, equipe_id) 
+            VALUES (%s, %s) 
+            ON CONFLICT (nom, equipe_id) DO NOTHING
+        """, (nom, equipe_id))
+        
+        if cur.rowcount > 0:
+            joueurs_inseres += 1
+    
+    print(f"✅ Joueurs insérés : {joueurs_inseres}")
+
+
+# ===================================================================
+# FONCTION POUR RÉCUPÉRER L'ID D'UN JOUEUR
+# ===================================================================
+
+def get_joueur_id(cur, nom_joueur, equipe_id):
+    """
+    Retourne l'ID d'un joueur à partir de son nom et de son équipe.
+    
+    Args:
+        cur: Curseur PostgreSQL
+        nom_joueur: Nom du joueur
+        equipe_id: ID de l'équipe
+    
+    Returns:
+        int: ID du joueur, ou None si non trouvé
+    """
+    cur.execute("""
+        SELECT id FROM joueurs 
+        WHERE nom = %s AND equipe_id = %s
+    """, (nom_joueur, equipe_id))
     result = cur.fetchone()
     return result[0] if result else None
