@@ -396,6 +396,12 @@ def parser_fichier(chemin: str) -> list:
     while i < len(lignes):
         ligne = lignes[i].rstrip('\n')
         
+        # Détection phase finale (▪ Semi-final, ▪ Final, etc.)
+        if ligne.startswith('▪') and not ligne.startswith('▪▪'):
+            groupe_actuel = ligne.strip()
+            i += 1
+            continue
+
         # 1. Détection du groupe (▪▪ Group 1, ▪▪ Group 2, etc.)
         if ligne.startswith('▪▪'):
             groupe_actuel = ligne.strip()
