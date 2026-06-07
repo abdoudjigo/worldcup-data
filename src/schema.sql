@@ -52,11 +52,11 @@ CREATE TABLE matchs (
 -- 5. Joueurs
 CREATE TABLE joueurs (
     id              SERIAL PRIMARY KEY,
-    nom             VARCHAR(100) NOT NULL,
+    nom             VARCHAR(100) NOT NULL UNIQUE,
     prenom          VARCHAR(100),
     date_naissance  DATE,
     poste           VARCHAR(5),   -- GK, DF, MF, FW
-    equipe_id       INTEGER REFERENCES equipes(id)
+    equipe_id       INTEGER REFERENCES equipes(id) UNIQUE
 );
 
 -- 6. Compositions
