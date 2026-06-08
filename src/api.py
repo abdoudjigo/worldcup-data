@@ -1,5 +1,6 @@
 # src/api.py
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List, Dict, Any
 import psycopg2
@@ -9,6 +10,16 @@ app = FastAPI(
     title="WorldCup API",
     description="API pour explorer les données de la Coupe du Monde 1930-2022",
     version="1.0"
+)
+
+# ===================================================================
+# CONFIGURATION CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ===================================================================

@@ -1,88 +1,202 @@
-# Coupe du Monde — Pipeline de données complet
+# ⚽ WorldCup Data Platform
 
-> De 1930 à 2022, chaque match, chaque but, chaque équipe. Construit de zéro.
-
----
-
-## À propos
-
-Ce projet couvre l'intégralité de l'histoire de la Coupe du Monde FIFA sur 23 éditions (1930–2022).
-L'objectif est de construire une vraie chaîne data professionnelle — du fichier texte brut jusqu'au dashboard interactif en ligne — en passant par une API et une base de données structurée.
-
-Projet personnel réalisé dans le cadre de ma formation **Dev Data** à la **Sonatel Académie / Orange Digital Center**, Dakar.
+> **22 éditions · 964 matchs · 2 604 buts · 85 nations**
+> De 1930 à 2022 — chaque match, chaque but, chaque équipe. Construit de zéro.
 
 ---
 
-## Ce que le projet couvre
+## 📖 À propos
 
-| Étape | Description | Statut |
-|-------|-------------|--------|
-| 📥 Parsing | Extraction des données brutes depuis les fichiers `.txt` | 🔄 En cours |
-| 🧹 Nettoyage | Normalisation des scores, dates, noms d'équipes | ⏳ À venir |
-| 🗄️ Base de données | Chargement dans PostgreSQL, schéma relationnel | ⏳ À venir |
-| 🔌 API REST | Endpoints par édition, équipe, statistiques | ⏳ À venir |
-| 📊 Dashboard | Visualisations interactives avec Chart.js | ⏳ À venir |
-| 🚀 Déploiement | Mise en ligne de l'API et du dashboard | ⏳ À venir |
+Ce projet est un **pipeline de données complet** sur l'intégralité de l'histoire de la Coupe du Monde FIFA (1930–2022).
+
+Il couvre toute la chaîne Data Engineering : extraction de données brutes, parsing, nettoyage, modélisation relationnelle, API REST, et visualisation interactive — le tout construit **from scratch**.
+
+> Réalisé dans le cadre de la formation **Dev Data P8** à la **Sonatel Académie / Orange Digital Center**, Dakar.
 
 ---
 
-## Stack technique
+## 📊 Ce que le projet couvre
 
-- **Python** — parsing, nettoyage, scripts ETL
-- **PostgreSQL** — stockage et requêtes relationnelles
-- **FastAPI** — API REST avec documentation automatique
-- **HTML / CSS / JS** — interface web
-- **Chart.js** — visualisations interactives
-- **Git / GitHub** — versioning et déploiement
-
----
-
-## Source des données
-
-Les données proviennent du repo open source [openfootball/worldcup](https://github.com/openfootball/worldcup).
-Format brut : fichiers `.txt` structurés à la main, couvrant 23 éditions de 1930 (Uruguay) à 2022 (Qatar).
-
-Chaque édition contient selon les années :
-- Les groupes et compositions
-- Les matchs avec scores et mi-temps
-- Les stades et villes hôtes
-- Les buteurs et passeurs (éditions récentes)
+| Étape | Description | Technologie |
+|:-----:|-------------|-------------|
+| 📥 **Parsing** | Extraction depuis fichiers `.txt` bruts (format openfootball) | Python / Regex |
+| 🧹 **Nettoyage** | Normalisation scores, dates, noms d'équipes, gestion `a.e.t.` | Python |
+| 🗄️ **Base de données** | Schéma relationnel 9 tables, chargement complet | PostgreSQL |
+| 🔌 **API REST** | Endpoints par édition, équipe, match, statistiques | FastAPI |
+| 🎨 **Dashboard** | Visualisations interactives multi-pages | Streamlit + Plotly |
 
 ---
 
-## Structure du projet
+## 📈 Chiffres clés
+
+| Donnée | Volume |
+|--------|--------|
+| 🏆 **Éditions** | 22 (1930 → 2022) |
+| ⚽ **Matchs** | 964 |
+| 🎯 **Buts** | 2 604 |
+| 👤 **Joueurs** | 6 082 |
+| 🤝 **Compositions** | 21 075 |
+| 🟨 **Arbitres** | 771 |
+| 🏟️ **Stades** | 195 |
+| 🌍 **Nations** | 85 |
+
+---
+
+## 🧰 Stack technique
+
+```
+┌─────────────────┬─────────────────────────────────────────────┐
+│ Python 3.x      │ Parsing, ETL, scripts de chargement         │
+│ PostgreSQL      │ Base de données relationnelle (9 tables)    │
+│ FastAPI         │ API REST avec documentation Swagger auto     │
+│ Streamlit       │ Dashboard interactif multi-pages            │
+│ Plotly          │ Visualisations avancées                     │
+│ psycopg2        │ Connecteur Python ↔ PostgreSQL              │
+└─────────────────┴─────────────────────────────────────────────┘
+```
+
+---
+
+## 🗂️ Architecture du projet
 
 ```
 worldcup-data/
 │
-├── worldcup/          # Données sources — repo openfootball (ne pas modifier)
+├── worldcup/                  # 📁 Données sources (openfootball — ne pas modifier)
 │
-├── src/               # Scripts Python
-│   ├── parser.py      # Extraction des données brutes
-│   ├── clean.py       # Nettoyage et normalisation
-│   └── load.py        # Chargement PostgreSQL
+├── src/                       # 📁 Pipeline ETL
+│   ├── parser.py              # Extraction données brutes → JSON
+│   ├── load.py                # Chargement JSON → PostgreSQL
+│   ├── utils.py               # Utilitaires (sauvegarde JSON)
+│   ├── main.py                # Orchestration pipeline complet
+│   ├── api.py                 # API REST FastAPI
+│   └── schema.sql             # Schéma base de données
 │
-├── data/              # Données transformées
-│   ├── raw/           # JSON brut issu du parser
-│   └── processed/     # JSON nettoyé et normalisé
+├── app/                       # 📁 Dashboard Streamlit
+│   ├── streamlit_app.py       # Page d'accueil
+│   ├── pages/
+│   │   ├── 1_Tournois.py      # Explorer les 22 éditions
+│   │   ├── 2_Equipes.py       # Stats par nation
+│   │   ├── 3_Stats.py         # Analyses & records
+│   │   └── 4_Apropos.py       # À propos du projet
+│   ├── utils/
+│   │   ├── db.py              # Connexion PostgreSQL
+│   │   └── queries.py         # Requêtes SQL réutilisables
+│   └── components/
+│       └── charts.py          # Graphiques Plotly réutilisables
+│
+├── data/
+│   └── worldcup_raw.json      # 📄 Données parsées (généré automatiquement)
 │
 └── README.md
 ```
 
 ---
 
-## Questions auxquelles le projet répond
+## 🗃️ Schéma de la base de données
 
-- Quelle nation a dominé l'histoire de la Coupe du Monde ?
-- Y a-t-il un avantage à jouer à domicile ?
-- Comment le nombre de buts par match a-t-il évolué depuis 1930 ?
-- Quelle est la meilleure génération de chaque équipe ?
-- Quelles confédérations produisent le plus de vainqueurs ?
+```
+                    ┌─────────────┐
+                    │  tournois   │
+                    └──────┬──────┘
+                           │
+          ┌────────┐  ┌────┴──────┐  ┌──────────┐
+          │ stades ├──►   matchs  ◄──┤  equipes │
+          └────────┘  └─────┬─────┘  └──────────┘
+                            │
+           ┌────────────────┼────────────────┐
+           │                │                │
+      ┌────┴────┐     ┌──────┴──────┐  ┌─────┴──────────┐
+      │  buts   │     │ compositions│  │ matchs_arbitres│
+      └────┬────┘     └──────┬──────┘  └────────┬───────┘
+           │                 │                   │
+      ┌────┴────────────┐    │            ┌──────┴──┐
+      │    joueurs      ◄────┘            │arbitres │
+      └─────────────────┘                 └─────────┘
+```
+
+**9 tables** : `tournois` · `equipes` · `stades` · `matchs` · `joueurs` · `buts` · `compositions` · `arbitres` · `matchs_arbitres`
 
 ---
 
-## Auteur
+## 🚀 Lancer le projet
+
+### 1. Cloner et installer
+
+```bash
+git clone https://github.com/abdoudjigo/worldcup-data.git
+cd worldcup-data
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Créer la base PostgreSQL
+
+```bash
+psql -U postgres -c "CREATE DATABASE worldcup;"
+psql -U postgres -d worldcup -f src/schema.sql
+```
+
+### 3. Lancer le pipeline ETL
+
+```bash
+python src/main.py
+```
+
+### 4. Lancer l'API
+
+```bash
+cd src
+uvicorn api:app --reload --port 8000
+```
+
+> 💡 L'API est accessible sur `http://localhost:8000/docs` (Swagger)
+
+### 5. Lancer le dashboard
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+---
+
+## ✅ Avancement
+
+| Étape | Statut |
+|-------|--------|
+| Analyse des sources de données (1930–2022) | ✅ Terminé |
+| Parser Python — 22 éditions, 964 matchs, 0 erreur | ✅ Terminé |
+| Nettoyage et normalisation des données | ✅ Terminé |
+| Schéma PostgreSQL — 9 tables relationnelles | ✅ Terminé |
+| Chargement complet en base | ✅ Terminé |
+| API REST FastAPI — tournois, équipes, matchs, stats | ✅ Terminé |
+| Dashboard Streamlit | ⏳ En cours |
+| Déploiement | 📅 Planifié |
+
+---
+
+## 📦 Source des données
+
+[openfootball/worldcup](https://github.com/openfootball/worldcup) — données open source au format texte brut, couvrant 22 éditions de la Coupe du Monde FIFA de 1930 à 2022.
+
+---
+
+## 👤 Auteur
 
 **Abdoulaye Djigo**
 Étudiant Dev Data — Sonatel Académie / Orange Digital Center, Dakar, Sénégal
-[GitHub](https://github.com/abdoudjigo)
+
+[![GitHub](https://img.shields.io/badge/GitHub-abdoudjigo-181717?style=flat-square&logo=github)](https://github.com/abdoudjigo)
+
+---
+
+## 📄 Licence
+
+Ce projet est à usage éducatif dans le cadre de la formation Dev Data P8.
+
+---
+
+<div align="center">
+  <sub>Construit avec ❤️ et beaucoup de 🐍 à Dakar</sub>
+</div>
