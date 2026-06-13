@@ -9,7 +9,7 @@
 
 Ce projet est un **pipeline de données complet** sur l'intégralité de l'histoire de la Coupe du Monde FIFA (1930–2022).
 
-Il couvre toute la chaîne Data Engineering : extraction de données brutes, parsing, nettoyage, modélisation relationnelle, API REST, et visualisation interactive — le tout construit **from scratch**.
+Il couvre toute la chaîne Data Engineering : extraction de données brutes, parsing, nettoyage, modélisation relationnelle, API REST, et visualisation statistique — le tout construit **from scratch**.
 
 > Réalisé dans le cadre de la formation **Dev Data P8** à la **Sonatel Académie / Orange Digital Center**, Dakar.
 
@@ -23,7 +23,7 @@ Il couvre toute la chaîne Data Engineering : extraction de données brutes, par
 | 🧹 **Nettoyage** | Normalisation scores, dates, noms d'équipes, gestion `a.e.t.` | Python |
 | 🗄️ **Base de données** | Schéma relationnel 9 tables, chargement complet | PostgreSQL |
 | 🔌 **API REST** | Endpoints par édition, équipe, match, statistiques | FastAPI |
-| 🎨 **Dashboard** | Visualisations interactives multi-pages | Streamlit + Plotly |
+| 📈 **Visualisation** | 5 graphiques statistiques (histogramme, bar, boxplot, courbe, scatter) | R / ggplot2 |
 
 ---
 
@@ -49,9 +49,11 @@ Il couvre toute la chaîne Data Engineering : extraction de données brutes, par
 │ Python 3.x      │ Parsing, ETL, scripts de chargement         │
 │ PostgreSQL      │ Base de données relationnelle (9 tables)    │
 │ FastAPI         │ API REST avec documentation Swagger auto     │
-│ Streamlit       │ Dashboard interactif multi-pages            │
-│ Plotly          │ Visualisations avancées                     │
 │ psycopg2        │ Connecteur Python ↔ PostgreSQL              │
+│ R               │ Analyse et visualisation statistique        │
+│ ggplot2         │ Graphiques avancés (5 types de visualisation)│
+│ RPostgres / DBI │ Connecteur R ↔ PostgreSQL                   │
+│ jsonlite        │ Lecture du JSON depuis R                    │
 └─────────────────┴─────────────────────────────────────────────┘
 ```
 
@@ -62,34 +64,43 @@ Il couvre toute la chaîne Data Engineering : extraction de données brutes, par
 ```
 worldcup-data/
 │
-├── worldcup/                  # 📁 Données sources (openfootball — ne pas modifier)
+├── worldcup/                      # 📁 Données sources (openfootball — ne pas modifier)
 │
-├── src/                       # 📁 Pipeline ETL
-│   ├── parser.py              # Extraction données brutes → JSON
-│   ├── load.py                # Chargement JSON → PostgreSQL
-│   ├── utils.py               # Utilitaires (sauvegarde JSON)
-│   ├── main.py                # Orchestration pipeline complet
-│   ├── api.py                 # API REST FastAPI
-│   └── schema.sql             # Schéma base de données
+├── src/                           # 📁 Pipeline ETL + API
+│   ├── parser.py                  # Extraction données brutes → JSON
+│   ├── load.py                    # Chargement JSON → PostgreSQL
+│   ├── utils.py                   # Utilitaires (sauvegarde JSON)
+│   ├── main.py                    # Orchestration pipeline complet
+│   ├── api.py                     # API REST FastAPI
+│   └── schema.sql                 # Schéma base de données
 │
-├── app/                       # 📁 Dashboard Streamlit
-│   ├── streamlit_app.py       # Page d'accueil
-│   ├── pages/
-│   │   ├── 1_Tournois.py      # Explorer les 22 éditions
-│   │   ├── 2_Equipes.py       # Stats par nation
-│   │   ├── 3_Stats.py         # Analyses & records
-│   │   └── 4_Apropos.py       # À propos du projet
-│   ├── utils/
-│   │   ├── db.py              # Connexion PostgreSQL
-│   │   └── queries.py         # Requêtes SQL réutilisables
-│   └── components/
-│       └── charts.py          # Graphiques Plotly réutilisables
+├── r/                             # 📁 Visualisations R / ggplot2
+│   ├── install.R                  # Installation des packages R nécessaires
+│   ├── connexion.R                # Connexion PostgreSQL + chargement JSON
+│   ├── viz_01_buts_edition.R      # Histogramme — buts par édition
+│   ├── viz_02_buts_equipe.R       # Bar chart — top 15 nations
+│   ├── viz_03_distribution.R      # Boxplot — distribution buts/match par décennie
+│   ├── viz_04_evolution.R         # Courbe — évolution buts/match (1930→2022)
+│   ├── viz_05_confrontations.R    # Scatter plot — attaque vs défense par nation
+│   └── dashboard.R                # Script principal — génère tous les graphiques
 │
 ├── data/
-│   └── worldcup_raw.json      # 📄 Données parsées (généré automatiquement)
+│   └── worldcup_raw.json          # 📄 Données parsées (généré automatiquement)
 │
 └── README.md
 ```
+
+---
+
+## 📊 Visualisations R
+
+| # | Fichier | Type | Description |
+|---|---------|------|-------------|
+| 1 | `viz_01_buts_edition.R` | **Histogramme** | Nombre de buts par édition (1930–2022) |
+| 2 | `viz_02_buts_equipe.R` | **Bar chart** | Top 15 nations — buts marqués toutes éditions |
+| 3 | `viz_03_distribution.R` | **Boxplot** | Distribution des buts/match par décennie |
+| 4 | `viz_04_evolution.R` | **Courbe** | Évolution de la moyenne de buts/match |
+| 5 | `viz_05_confrontations.R` | **Scatter plot** | Buts marqués vs buts encaissés par nation |
 
 ---
 
@@ -121,7 +132,7 @@ worldcup-data/
 
 ## 🚀 Lancer le projet
 
-### 1. Cloner et installer
+### 1. Cloner et installer (Python)
 
 ```bash
 git clone https://github.com/abdoudjigo/worldcup-data.git
@@ -151,13 +162,28 @@ cd src
 uvicorn api:app --reload --port 8000
 ```
 
-> 💡 L'API est accessible sur `http://localhost:8000/docs` (Swagger)
+> 💡 Documentation Swagger accessible sur `http://localhost:8000/docs`
 
-### 5. Lancer le dashboard
+### 5. Installer R et les packages
 
 ```bash
-streamlit run app/streamlit_app.py
+# Ubuntu / Debian
+sudo apt update
+sudo apt install r-base -y
 ```
+
+```r
+# Dans R
+source("r/install.R")
+```
+
+### 6. Lancer les visualisations
+
+```bash
+Rscript r/dashboard.R
+```
+
+> Les graphiques sont générés dans le dossier `r/output/`
 
 ---
 
@@ -171,7 +197,7 @@ streamlit run app/streamlit_app.py
 | Schéma PostgreSQL — 9 tables relationnelles | ✅ Terminé |
 | Chargement complet en base | ✅ Terminé |
 | API REST FastAPI — tournois, équipes, matchs, stats | ✅ Terminé |
-| Dashboard Streamlit | ⏳ En cours |
+| Visualisations R / ggplot2 — 5 graphiques | ⏳ En cours |
 | Déploiement | 📅 Planifié |
 
 ---
@@ -198,5 +224,5 @@ Ce projet est à usage éducatif dans le cadre de la formation Dev Data P8.
 ---
 
 <div align="center">
-  <sub>Construit avec ❤️ et beaucoup de 🐍 à Dakar</sub>
+  <sub>Construit avec ❤️ · Python 🐍 · R 📊 · à Dakar</sub>
 </div>
