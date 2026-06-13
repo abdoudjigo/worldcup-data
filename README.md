@@ -52,8 +52,9 @@ Il couvre toute la chaîne Data Engineering : extraction de données brutes, par
 │ psycopg2        │ Connecteur Python ↔ PostgreSQL              │
 │ R               │ Analyse et visualisation statistique        │
 │ ggplot2         │ Graphiques avancés (5 types de visualisation)│
+│ hrbrthemes      │ Thèmes typographiques professionnels        │
+│ viridis         │ Palettes de couleurs accessibles            │
 │ RPostgres / DBI │ Connecteur R ↔ PostgreSQL                   │
-│ jsonlite        │ Lecture du JSON depuis R                    │
 └─────────────────┴─────────────────────────────────────────────┘
 ```
 
@@ -75,32 +76,48 @@ worldcup-data/
 │   └── schema.sql                 # Schéma base de données
 │
 ├── r/                             # 📁 Visualisations R / ggplot2
-│   ├── install.R                  # Installation des packages R nécessaires
-│   ├── connexion.R                # Connexion PostgreSQL + chargement JSON
+│   ├── install.R                  # Installation des packages R
+│   ├── connexion.R                # Connexion PostgreSQL
 │   ├── viz_01_buts_edition.R      # Histogramme — buts par édition
 │   ├── viz_02_buts_equipe.R       # Bar chart — top 15 nations
-│   ├── viz_03_distribution.R      # Boxplot — distribution buts/match par décennie
-│   ├── viz_04_evolution.R         # Courbe — évolution buts/match (1930→2022)
-│   ├── viz_05_confrontations.R    # Scatter plot — attaque vs défense par nation
-│   └── dashboard.R                # Script principal — génère tous les graphiques
+│   ├── viz_03_distribution.R      # Boxplot — distribution par décennie
+│   ├── viz_04_evolution.R         # Courbe — évolution buts/match
+│   ├── viz_05_confrontations.R    # Scatter — attaque vs défense
+│   ├── dashboard.R                # Script principal
+│   └── output/                    # 📊 Graphiques générés (PNG)
 │
 ├── data/
-│   └── worldcup_raw.json          # 📄 Données parsées (généré automatiquement)
+│   └── worldcup_raw.json          # 📄 Données parsées
 │
 └── README.md
 ```
 
 ---
 
-## 📊 Visualisations R
+## 📊 Visualisations
 
-| # | Fichier | Type | Description |
-|---|---------|------|-------------|
-| 1 | `viz_01_buts_edition.R` | **Histogramme** | Nombre de buts par édition (1930–2022) |
-| 2 | `viz_02_buts_equipe.R` | **Bar chart** | Top 15 nations — buts marqués toutes éditions |
-| 3 | `viz_03_distribution.R` | **Boxplot** | Distribution des buts/match par décennie |
-| 4 | `viz_04_evolution.R` | **Courbe** | Évolution de la moyenne de buts/match |
-| 5 | `viz_05_confrontations.R` | **Scatter plot** | Buts marqués vs buts encaissés par nation |
+### 1. Buts par édition — Histogramme
+![Buts par édition](r/output/viz_01_buts_edition.png)
+
+---
+
+### 2. Top 15 nations — Bar chart
+![Top 15 nations](r/output/viz_02_buts_equipe.png)
+
+---
+
+### 3. Distribution des buts/match — Boxplot
+![Distribution](r/output/viz_03_distribution.png)
+
+---
+
+### 4. Évolution de la moyenne — Courbe
+![Évolution](r/output/viz_04_evolution.png)
+
+---
+
+### 5. Attaque vs Défense — Scatter plot
+![Confrontations](r/output/viz_05_confrontations.png)
 
 ---
 
@@ -162,28 +179,25 @@ cd src
 uvicorn api:app --reload --port 8000
 ```
 
-> 💡 Documentation Swagger accessible sur `http://localhost:8000/docs`
+> 💡 Documentation Swagger : `http://localhost:8000/docs`
 
 ### 5. Installer R et les packages
 
 ```bash
 # Ubuntu / Debian
-sudo apt update
-sudo apt install r-base -y
+sudo apt install r-base libpq-dev -y
+
+# Packages R
+Rscript -e "install.packages(c('ggplot2','DBI','RPostgres','jsonlite','dplyr','scales','hrbrthemes','viridis'), repos='https://cloud.r-project.org')"
 ```
 
-```r
-# Dans R
-source("r/install.R")
-```
-
-### 6. Lancer les visualisations
+### 6. Générer les visualisations
 
 ```bash
 Rscript r/dashboard.R
 ```
 
-> Les graphiques sont générés dans le dossier `r/output/`
+> Les graphiques PNG sont générés dans `r/output/`
 
 ---
 
@@ -197,7 +211,7 @@ Rscript r/dashboard.R
 | Schéma PostgreSQL — 9 tables relationnelles | ✅ Terminé |
 | Chargement complet en base | ✅ Terminé |
 | API REST FastAPI — tournois, équipes, matchs, stats | ✅ Terminé |
-| Visualisations R / ggplot2 — 5 graphiques | ⏳ En cours |
+| Visualisations R / ggplot2 — 5 graphiques | ✅ Terminé |
 | Déploiement | 📅 Planifié |
 
 ---
@@ -224,5 +238,5 @@ Ce projet est à usage éducatif dans le cadre de la formation Dev Data P8.
 ---
 
 <div align="center">
-  <sub>Construit avec ❤️ · Python 🐍 · R 📊 · à Dakar</sub>
+  <sub>Construit avec ❤️ · Python 🐍 · R 📊 · PostgreSQL 🐘 · à Dakar</sub>
 </div>
